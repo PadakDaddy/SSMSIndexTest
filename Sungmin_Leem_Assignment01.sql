@@ -102,6 +102,7 @@ GO
 
 PRINT 'SCENARIO 1-3 is DONE';
 PRINT 'SCENARIO 1 is complete';
+GO
 -- SQL Server Execution Times:
 -- CPU time = 47 ms,  elapsed time = 478 ms.
 -- Scenario 1 result: No Index: 63 ms, With Index: 47 ms => With Index is about 25.4% faster
@@ -162,7 +163,7 @@ SET STATISTICS IO OFF;
 GO
 PRINT 'SCENARIO 2-3 is DONE';
 PRINT 'SCENARIO 2 is complete';
-
+GO
 -- SQL Server Execution Times:
 -- CPU time = 266 ms,  elapsed time = 523 ms.
 -- Scenario 2 result: No Index: 266 ms, With Nonclustered Index: 266 ms => Nonclustered Index less effective for ORDER BY
@@ -171,7 +172,7 @@ PRINT 'Ready for next scenario.';
 GO
 
 --==============Scenario 3====================
---Use a clustered index on a large data set with WHERE criteria (on one table with both single value and range criteria)//USA
+--Use a clustered index on a large data set with WHERE criteria (on one table with both single value and range criteria)//Canada
 PRINT '===SCENARIO 3-1: No Index===';
 CHECKPOINT;
 DBCC DROPCLEANBUFFERS;
@@ -231,10 +232,37 @@ FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID);
 GO
 
 PRINT 'Clustered Index Created Successfully!';
+PRINT 'SCENARIO 3-2 is DONE';
 GO
 
 -- SQL Server Execution Times:
 -- CPU time = 31 ms,  elapsed time = 170 ms.
+PRINT '===SCENARIO 3-3: Clustered Index WHERE condition: Country,Canada ===';
+GO
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
+
+SELECT CustomerID, CompanyName, Country, City
+FROM Customers
+WHERE Country = 'Canada';
+
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
+
+PRINT 'SCENARIO 3-3 is DONE';
+PRINT 'SCENARIO 2 is complete';
+GO
+-- SQL Server Execution Times:
+-- CPU time = 15 ms,  elapsed time = 87 ms.
+-- Scenario 3 result: No Index:31 ms, Clustered Index: 15 ms => Clustered Index is about 51.6% faster
+DROP INDEX idxCountryCluster ON Customers;
+PRINT 'Ready for next scenario.';
+GO
 
 --==============Scenario 4====================
 --Use a non-clustered index large data set with WHERE criteria (on one table with both single value and range criteria)
