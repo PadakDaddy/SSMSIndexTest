@@ -322,7 +322,7 @@ GO
 -- SQL Server Execution Times:
 -- CPU time = 31 ms,  elapsed time = 199 ms.
 -- Scenario 4 result: No Index:31 ms, NonClustered Index: 31 ms =>No improvement
-DROP NONCLUSTERED INDEX idxPostalCodeNonCluster ON Customers;
+DROP INDEX idxPostalCodeNonCluster ON Customers;
 PRINT 'Ready for next scenario.';
 GO
 
