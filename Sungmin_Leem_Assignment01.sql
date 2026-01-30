@@ -189,7 +189,7 @@ SET STATISTICS TIME OFF;
 SET STATISTICS IO OFF;
 GO
 
-PRINT 'SCENARIO 3-1 is DONE';
+PRINT '===SCENARIO 3-1 is DONE===';
 GO
 
 PRINT '===SCENARIO 3-2: Creating Clustered Index on Country===';
@@ -266,7 +266,7 @@ GO
 
 --==============Scenario 4====================
 --Use a non-clustered index large data set with WHERE criteria (on one table with both single value and range criteria)/PostalCode
-PRINT 'SCENARIO 4-1: No Index';
+PRINT '===SCENARIO 4-1: No Index===';
 GO
 CHECKPOINT;
 DBCC DROPCLEANBUFFERS;
@@ -299,7 +299,7 @@ PRINT 'Nonclustered Index Created Successfully!';
 PRINT 'SCENARIO 4-2 is done';
 GO
 
-PRINT '===SCENARIO 4-3: With Nonlustered Index sorting by PostalCode===';
+PRINT '===SCENARIO 4-3: With Nonclustered Index sorting by PostalCode===';
 GO
 CHECKPOINT;
 DBCC DROPCLEANBUFFERS;
@@ -327,15 +327,97 @@ PRINT 'Ready for next scenario.';
 GO
 
 --==============Scenario 5====================
---UUse a clustered index in a JOIN between two large data sets. Also consider what happens when using the WHERE clause in the JOIN.
-PRINT 'SCENARIO 5-1: No Index';
+--Use a clustered index in a JOIN between two large data sets. Also consider what happens when using the WHERE clause in the JOIN.
+PRINT '===SCENARIO 5-1: No Index===';
 GO
 
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
 
+SELECT c.CustomerID, c.CompanyName, o.OrderID, o.OrderDate
+FROM Customers c
+INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+WHERE c.Country = 'Canada';
 
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
 
+PRINT 'SCENARIO 5-1 is DONE';
+GO
+-- SQL Server Execution Times:
+-- CPU time = 16 ms,  elapsed time = 18 ms.
+
+PRINT '===SCENARIO 5-2: Creating Clustered Index on Orders.OrderDate===';
+GO
+-- Drop Foreign Key from Order Details table first
+ALTER TABLE [Order Details]
+DROP CONSTRAINT FK_Order_Details_Orders;
+GO
+
+-- Drop Primary Key constraint from Orders table
+ALTER TABLE Orders
+DROP CONSTRAINT PK_Orders;
+GO
+
+-- Create new Clustered Index on OrderDate
+CREATE CLUSTERED INDEX idxOrderDateCluster
+ON Orders(OrderDate ASC);
+GO
+
+-- Add Primary Key constraint on OrderID as Nonclustered
+ALTER TABLE Orders
+ADD CONSTRAINT PK_Orders PRIMARY KEY NONCLUSTERED (OrderID);
+GO
+
+-- Recreate Foreign Key in Order Details table
+ALTER TABLE [Order Details]
+ADD CONSTRAINT FK_Order_Details_Orders 
+FOREIGN KEY (OrderID) REFERENCES Orders(OrderID);
+GO
+
+PRINT 'Clustered Index Created Successfully!';
+PRINT 'SCENARIO 5-2 is done';
+GO
+
+PRINT '===SCENARIO 5-3: With Clustered Index sorting by PostalCode===';
+GO
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
+
+SELECT c.CustomerID, c.CompanyName, o.OrderID, o.OrderDate
+FROM Customers c
+INNER JOIN Orders o ON c.CustomerID = o.CustomerID
+WHERE c.Country = 'Canada';
+
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
+
+PRINT 'SCENARIO 5-3 is DONE';
+PRINT 'SCENARIO 5 is complete';
+GO
+-- SQL Server Execution Times:
+-- CPU time = 16 ms,  elapsed time = 16 ms.
+-- Scenario 5 result: No Index:16 ms, Clustered Index:16 ms =>No improvement. It's already fast
+
+DROP INDEX idxOrderDateCluster ON Orders;
+PRINT 'Ready for next scenario.';
+GO
 
 --==============Scenario 6====================
 --Use a non-clustered index in a JOIN between two large data sets. Also consider what happens when using the WHERE clause in the JOIN.
-PRINT 'SCENARIO 6-1: No Index';
+PRINT '===SCENARIO 6-1: No Index===';
+GO
+
+
+PRINT 'Clustered Index Created Successfully!';
 GO
