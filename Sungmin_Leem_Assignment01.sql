@@ -234,9 +234,9 @@ GO
 PRINT 'Clustered Index Created Successfully!';
 PRINT 'SCENARIO 3-2 is DONE';
 GO
-
 -- SQL Server Execution Times:
 -- CPU time = 31 ms,  elapsed time = 170 ms.
+
 PRINT '===SCENARIO 3-3: Clustered Index WHERE condition: Country,Canada ===';
 GO
 CHECKPOINT;
@@ -288,8 +288,40 @@ GO
 -- SQL Server Execution Times:
 -- CPU time = 31 ms,  elapsed time = 80 ms.
 
+PRINT '===SCENARIO 4-2: Creating Nonclustered Index on PostalCode===';
+GO
+-- Create new Nonclustered Index on PostalCode
+CREATE NONCLUSTERED INDEX idxPostalCodeNonCluster
+ON Customers(PostalCode ASC);
+GO
 
+PRINT 'Nonclustered Index Created Successfully!';
+PRINT 'SCENARIO 4-2 is done';
+GO
 
+PRINT '===SCENARIO 4-3: With Nonlustered Index sorting by PostalCode===';
+GO
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
+
+SELECT CustomerID, CompanyName, PostalCode, City
+FROM Customers
+WHERE PostalCode BETWEEN '10000' AND '20000';
+
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
+
+PRINT 'SCENARIO 4-3 is DONE';
+PRINT 'SCENARIO 4 is complete';
+GO
+-- SQL Server Execution Times:
+-- CPU time = 31 ms,  elapsed time = 199 ms.
+-- Scenario 4 result: No Index:31 ms, NonClustered Index: 31 ms =>No improvement
 
 --==============Scenario 5====================
 --UUse a clustered index in a JOIN between two large data sets. Also consider what happens when using the WHERE clause in the JOIN.
