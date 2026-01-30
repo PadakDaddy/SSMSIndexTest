@@ -322,6 +322,9 @@ GO
 -- SQL Server Execution Times:
 -- CPU time = 31 ms,  elapsed time = 199 ms.
 -- Scenario 4 result: No Index:31 ms, NonClustered Index: 31 ms =>No improvement
+DROP NONCLUSTERED INDEX idxPostalCodeNonCluster ON Customers;
+PRINT 'Ready for next scenario.';
+GO
 
 --==============Scenario 5====================
 --UUse a clustered index in a JOIN between two large data sets. Also consider what happens when using the WHERE clause in the JOIN.
