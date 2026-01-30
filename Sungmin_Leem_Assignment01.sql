@@ -265,9 +265,28 @@ PRINT 'Ready for next scenario.';
 GO
 
 --==============Scenario 4====================
---Use a non-clustered index large data set with WHERE criteria (on one table with both single value and range criteria)
+--Use a non-clustered index large data set with WHERE criteria (on one table with both single value and range criteria)/PostalCode
 PRINT 'SCENARIO 4-1: No Index';
 GO
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
+
+SELECT CustomerID, CompanyName, PostalCode, City
+FROM Customers
+WHERE PostalCode BETWEEN '10000' AND '20000';
+
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
+
+PRINT 'SCENARIO 4-1 is DONE';
+GO
+-- SQL Server Execution Times:
+-- CPU time = 31 ms,  elapsed time = 80 ms.
 
 
 
