@@ -39,7 +39,7 @@ GO
 PRINT 'SCENARIO 1-1 is DONE';
 GO
 -- SQL Server Execution Times:
--- CPU time = 94 ms,  elapsed time = 437 ms.
+-- CPU time = 94 ms,  elapsed time = 437 ms. logical reads 1105
 
 PRINT '===SCENARIO 1-2: Creating Clustered Index on ContactName===';
 GO
@@ -105,7 +105,7 @@ PRINT 'SCENARIO 1-3 is DONE';
 PRINT 'SCENARIO 1 is complete';
 GO
 -- SQL Server Execution Times:
--- CPU time = 47 ms,  elapsed time = 478 ms.
+-- CPU time = 47 ms,  elapsed time = 478 ms, logical reads 1102
 -- Scenario 1 result: No Index: 63 ms, With Index: 47 ms => With Index is about 25.4% faster
 DROP INDEX idxContactNameCluster ON Customers;
 PRINT 'Ready for next scenario.';
@@ -134,7 +134,7 @@ GO
 PRINT 'SCENARIO 2-1 is done';
 GO
 -- SQL Server Execution Times:
--- CPU time = 266 ms,  elapsed time = 483 ms.
+-- CPU time = 266 ms,  elapsed time = 483 ms. logical reads 1090
 
 PRINT '===SCENARIO 2-2: Creating Nonclustered Index on CompanyName===';
 GO
@@ -166,7 +166,7 @@ PRINT 'SCENARIO 2-3 is DONE';
 PRINT 'SCENARIO 2 is complete';
 GO
 -- SQL Server Execution Times:
--- CPU time = 266 ms,  elapsed time = 523 ms.
+-- CPU time = 266 ms,  elapsed time = 523 ms.logical reads 1090
 -- Scenario 2 result: No Index: 266 ms, With Nonclustered Index: 266 ms => Nonclustered Index less effective for ORDER BY
 DROP INDEX idxCompanyNameNonCluster ON Customers;
 PRINT 'Ready for next scenario.';
@@ -192,6 +192,9 @@ GO
 
 PRINT '===SCENARIO 3-1 is DONE===';
 GO
+
+--SQL Server Execution Times:
+--CPU time = 47 ms,  elapsed time = 310 ms.logical reads 1090
 
 PRINT '===SCENARIO 3-2: Creating Clustered Index on Country===';
 GO
@@ -235,8 +238,6 @@ GO
 PRINT 'Clustered Index Created Successfully!';
 PRINT 'SCENARIO 3-2 is DONE';
 GO
--- SQL Server Execution Times:
--- CPU time = 31 ms,  elapsed time = 170 ms.
 
 PRINT '===SCENARIO 3-3: Clustered Index WHERE condition: Country,Canada ===';
 GO
@@ -256,10 +257,10 @@ SET STATISTICS IO OFF;
 GO
 
 PRINT 'SCENARIO 3-3 is DONE';
-PRINT 'SCENARIO 2 is complete';
+PRINT 'SCENARIO 3 is complete';
 GO
 -- SQL Server Execution Times:
--- CPU time = 15 ms,  elapsed time = 87 ms.
+-- CPU time = 15 ms,  elapsed time = 87 ms, logical reads 228
 -- Scenario 3 result: No Index:31 ms, Clustered Index: 15 ms => Clustered Index is about 51.6% faster
 DROP INDEX idxCountryCluster ON Customers;
 PRINT 'Ready for next scenario.';
@@ -287,7 +288,7 @@ GO
 PRINT 'SCENARIO 4-1 is DONE';
 GO
 -- SQL Server Execution Times:
--- CPU time = 31 ms,  elapsed time = 80 ms.
+-- CPU time = 31 ms,  elapsed time = 80 ms, logical reads 1105
 
 PRINT '===SCENARIO 4-2: Creating Nonclustered Index on PostalCode===';
 GO
@@ -321,7 +322,7 @@ PRINT 'SCENARIO 4-3 is DONE';
 PRINT 'SCENARIO 4 is complete';
 GO
 -- SQL Server Execution Times:
--- CPU time = 31 ms,  elapsed time = 199 ms.
+-- CPU time = 31 ms,  elapsed time = 199 ms, logical reads 1105
 -- Scenario 4 result: No Index:31 ms, NonClustered Index: 31 ms =>No improvement
 DROP INDEX idxPostalCodeNonCluster ON Customers;
 PRINT 'Ready for next scenario.';
@@ -351,7 +352,7 @@ GO
 PRINT 'SCENARIO 5-1 is DONE';
 GO
 -- SQL Server Execution Times:
--- CPU time = 16 ms,  elapsed time = 18 ms.
+-- CPU time = 16 ms,  elapsed time = 18 ms, logical reads 61
 
 PRINT '===SCENARIO 5-2: Creating Clustered Index on Orders.OrderDate===';
 GO
@@ -407,7 +408,7 @@ PRINT 'SCENARIO 5-3 is DONE';
 PRINT 'SCENARIO 5 is complete';
 GO
 -- SQL Server Execution Times:
--- CPU time = 16 ms,  elapsed time = 16 ms.
+-- CPU time = 0 ms,  elapsed time = 16 ms ,logical reads 23
 -- Scenario 5 result: No Index:16 ms, Clustered Index:16 ms =>No improvement. It's already fast. scale is small.
 
 DROP INDEX idxOrderDateCluster ON Orders;
@@ -437,7 +438,7 @@ GO
 PRINT 'SCENARIO 6-1 is DONE';
 GO
 -- Server Execution Times:
--- CPU time = 16 ms, elapsed time = 12 ms.
+-- CPU time = 16 ms, elapsed time = 12 ms.logical reads 2601, logical reads 23
 
 PRINT '===SCENARIO 6-2: Creating Nonclustered Index on Orders.CustomerID===';
 GO
@@ -474,7 +475,7 @@ PRINT 'SCENARIO 6 is complete';
 GO
 
 -- SQL Server Execution Times:
--- CPU time = 0 ms,  elapsed time = 61 ms. 
+-- CPU time = 0 ms,  elapsed time = 61 ms, logical reads 2780, logical reads 23 
 -- Scenario 5 result: No Index:16 ms, Nonclustered Index:0 ms => Nnclustered index on CustomerID reduced CPU time but increased elapsed time
 DROP INDEX idxCustomerIDNonCluster ON Orders;
 PRINT 'Ready for next scenario.';
@@ -521,20 +522,25 @@ GO
 PRINT '===SCENARIO 7-2: Force Fragmentation (INSERT + UPDATE)===';
 GO
 
--- Insert many rows with various dates to cause page splits
+-- Insert many rows with dates IN THE QUERY RANGE to cause page splits
+-- Use DATEADD(day, -(@i % 184), '1996-12-31') to loop through the date range
 DECLARE @i INT = 1;
 WHILE @i <= 5000
 BEGIN
     INSERT INTO Orders (CustomerID, EmployeeID, OrderDate, RequiredDate, ShipVia, Freight)
-    VALUES ('ALFKI', 1, DATEADD(day, -@i, GETDATE()), DATEADD(day, @i, GETDATE()), 1, RAND()*100);
+    VALUES ('ALFKI', 1, 
+            DATEADD(day, -(@i % 184), '1996-12-31'),
+            DATEADD(day, @i, '1996-12-31'), 
+            1, 
+            RAND()*100);
     SET @i = @i + 1;
 END;
 GO
 
--- Update rows to force fragmentation
+-- Update rows to force fragmentation (only the new rows we inserted)
 UPDATE Orders
 SET Freight = Freight + (RAND() * 50)
-WHERE OrderID % 2 = 0;
+WHERE CustomerID = 'ALFKI' AND OrderID > 11077;
 GO
 
 PRINT 'Fragmentation forced!';
@@ -602,6 +608,9 @@ GO
 -- Clean up inserted rows
 DELETE FROM Orders WHERE CustomerID = 'ALFKI' AND OrderID > 11077;
 GO
+
 DROP INDEX IX_Orders_OrderDate_Frag ON Orders;
+GO
+
 PRINT 'Cleanup complete. All scenarios finished.';
 GO
