@@ -63,6 +63,7 @@ CREATE CLUSTERED INDEX idxContactNameCluster
 ON Customers(ContactName ASC);
 GO
 
+
 -- Add Primary Key constraint on CustomerID as Nonclustered
 ALTER TABLE Customers
 ADD CONSTRAINT PK_Customers PRIMARY KEY NONCLUSTERED (CustomerID);
@@ -481,50 +482,23 @@ GO
 
 --==============Scenario 7====================
 --Demonstrate the effect of fragmentation. Force fragmentation to occur, then demonstrate how rebuilding the index fixes the issues.
-PRINT '===SCENARIO 7-1: Create Index & Baseline===';
+PRINT '===SCENARIO 7-1: Create Nonclustered Index===';
 GO
 
--- Drop Foreign Key from Orders table
-ALTER TABLE Orders
-DROP CONSTRAINT FK_Orders_Customers;
+-- Create new Nonclustered Index on OrderDate
+CREATE NONCLUSTERED INDEX IX_Orders_OrderDate_Frag
+ON Orders(OrderDate);
 GO
 
--- Drop Primary Key constraint from Customers table
-ALTER TABLE Customers
-DROP CONSTRAINT PK_Customers;
+PRINT 'Nonclustered Index Created Successfully!';
 GO
 
--- Create new Clustered Index on Country
-CREATE CLUSTERED INDEX idxCountryCluster
-ON Customers(Country ASC);
+-- Check Fragmentation BEFORE
+PRINT '===SCENARIO 7-1: Fragmentation Status BEFORE===';
+DBCC SHOWCONTIG ('Orders', 'IX_Orders_OrderDate_Frag');
 GO
 
--- Add Primary Key constraint on CustomerID as Nonclustered
-ALTER TABLE Customers
-ADD CONSTRAINT PK_Customers PRIMARY KEY NONCLUSTERED (CustomerID);
-GO
-
--- Recreate Foreign Key in Orders table
-ALTER TABLE Orders
-ADD CONSTRAINT FK_Orders_Customers 
-FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID);
-GO
-
-PRINT 'Index Created Successfully!';
-GO
-
--- Check fragmentation BEFORE using sys.dm_db_index_physical_stats
-PRINT '===Fragmentation Status BEFORE===';
-SELECT 
-    OBJECT_NAME(ps.object_id) AS TableName,
-    i.name AS IndexName,
-    ps.avg_fragmentation_in_percent AS FragmentationPercent
-FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ps
-INNER JOIN sys.indexes i ON ps.object_id = i.object_id AND ps.index_id = i.index_id
-WHERE OBJECT_NAME(ps.object_id) = 'Customers' AND i.name = 'idxCountryCluster';
-GO
-
--- Baseline query
+-- Baseline query BEFORE fragmentation
 CHECKPOINT;
 DBCC DROPCLEANBUFFERS;
 DBCC FREEPROCCACHE;
@@ -532,13 +506,102 @@ SET STATISTICS TIME ON;
 SET STATISTICS IO ON;
 GO
 
-SELECT CustomerID, CompanyName, Country, City
-FROM Customers
-WHERE Country = 'Canada';
+SELECT OrderID, OrderDate, CustomerID, EmployeeID
+FROM Orders
+WHERE OrderDate BETWEEN '1996-07-01' AND '1996-12-31';
 
 SET STATISTICS TIME OFF;
 SET STATISTICS IO OFF;
 GO
 
-PRINT 'SCENARIO 7-1 is DONE';
+PRINT 'SCENARIO 7-1 BASELINE is DONE';
+GO
+
+--=== SCENARIO 7-2: Force Fragmentation ===
+PRINT '===SCENARIO 7-2: Force Fragmentation (INSERT + UPDATE)===';
+GO
+
+-- Insert many rows with various dates to cause page splits
+DECLARE @i INT = 1;
+WHILE @i <= 5000
+BEGIN
+    INSERT INTO Orders (CustomerID, EmployeeID, OrderDate, RequiredDate, ShipVia, Freight)
+    VALUES ('ALFKI', 1, DATEADD(day, -@i, GETDATE()), DATEADD(day, @i, GETDATE()), 1, RAND()*100);
+    SET @i = @i + 1;
+END;
+GO
+
+-- Update rows to force fragmentation
+UPDATE Orders
+SET Freight = Freight + (RAND() * 50)
+WHERE OrderID % 2 = 0;
+GO
+
+PRINT 'Fragmentation forced!';
+GO
+
+-- Check Fragmentation AFTER
+PRINT '===SCENARIO 7-2: Fragmentation Status AFTER Updates===';
+DBCC SHOWCONTIG ('Orders', 'IX_Orders_OrderDate_Frag');
+GO
+
+-- Query AFTER fragmentation
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
+
+SELECT OrderID, OrderDate, CustomerID, EmployeeID
+FROM Orders
+WHERE OrderDate BETWEEN '1996-07-01' AND '1996-12-31';
+
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
+
+PRINT 'SCENARIO 7-2 WITH FRAGMENTATION is DONE';
+GO
+
+--=== SCENARIO 7-3: REBUILD Index ===
+PRINT '===SCENARIO 7-3: REBUILD Index===';
+GO
+
+ALTER INDEX IX_Orders_OrderDate_Frag ON Orders REBUILD;
+GO
+
+PRINT 'Index REBUILT!';
+GO
+
+-- Check Fragmentation AFTER REBUILD
+PRINT '===SCENARIO 7-3: Fragmentation Status AFTER REBUILD===';
+DBCC SHOWCONTIG ('Orders', 'IX_Orders_OrderDate_Frag');
+GO
+
+-- Query AFTER REBUILD
+CHECKPOINT;
+DBCC DROPCLEANBUFFERS;
+DBCC FREEPROCCACHE;
+SET STATISTICS TIME ON;
+SET STATISTICS IO ON;
+GO
+
+SELECT OrderID, OrderDate, CustomerID, EmployeeID
+FROM Orders
+WHERE OrderDate BETWEEN '1996-07-01' AND '1996-12-31';
+
+SET STATISTICS TIME OFF;
+SET STATISTICS IO OFF;
+GO
+
+PRINT 'SCENARIO 7-3 AFTER REBUILD is DONE';
+PRINT 'SCENARIO 7 is COMPLETE';
+GO
+
+-- Clean up inserted rows
+DELETE FROM Orders WHERE CustomerID = 'ALFKI' AND OrderID > 11077;
+GO
+DROP INDEX IX_Orders_OrderDate_Frag ON Orders;
+PRINT 'Cleanup complete. All scenarios finished.';
 GO
